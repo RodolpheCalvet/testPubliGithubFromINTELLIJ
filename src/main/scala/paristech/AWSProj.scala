@@ -94,9 +94,10 @@ object AWSProj {
     //fileDownloader("http://data.gdeltproject.org/gdeltv2/masterfilelist-translation.txt", "/tmp/masterfilelist_translation.txt")
 
     //arn:aws:s3:::furets
-    val AWS_ID = "ASIAQFYNH7PY2G7FEXH3"
-    val AWS_KEY = "QHkjIlAsQo7R/A4zRFwzKw35Fyj1d5mm3VqpGSzD" //seccret one
-    val AWS_SESSION_TOKEN = "FwoGZXIvYXdzECcaDGItFAtdlnwAhuyydSLQAUFI3uz5wxx5zLQQ4EunVFrhsomY2kcNli2pDi6Miy5v+g53qfBU6/1P51ZwFXnaBt6vhzgl+H+zOBK0ZtICyhvcCNjXSnPcOLHxfzOPz08N4eNzBoNwk6EOG40io744GzXZLx3mb4EBs22OEGPjZ1GV/oaoaXsuHvVAthKe6s8B8paaUj+Lddnsqwjfemt17KhaEsU6kAfgeAsy0CU4Q4d2vnrK2Hz+F8NZiD7moC6OOId/8MROz583tEmTchRXk24dWgNgjQ8S/s9sApRrtkwo1dD9/wUyLUZLo4dFWXkDGnYlOLjfhK2nnaBUKFmRMJroZfbVNl2ECUfuu+tXcdG6EDI/ug=="
+    val AWS_ID = "ASIAQFYNH7PYSTBF4HHI"
+    val AWS_KEY = "X0zLznxFMKnvym11jVvsfP+oU1PLiTV9Rl1ix7x8" //seccret one
+    val AWS_SESSION_TOKEN =
+    "FwoGZXIvYXdzED4aDJ/voiN6QT/qZKm3QyLQAShMNrEOkX4sjXyWivd3u5I8UDwTCei4IOo9f+0DwJgmvCT4Gsq98WpCjCT3r9o0rk9N6k2sQGKEXBsK5XixnRV3Bp0B4bDOXgB5OCHklFx2/6/98J43ZK6W3Y25N8ijTSwCRwxVs3Ke6iQ5GunbuDtO5Kpmf80eTyVSA7nELVm1QY6A3AbZoVUGLiZpmj784zIyf92OKnzYg1GYRUOlTeOMC2489+JxW8IcJleeZwnxYyWMDpKXocvbtApFduOzQ7Vc/5Rx1l9rwf9bJonvBGMo8NeCgAYyLQQE88jQjk0oE1MAdde3moj+ihUkvDZx0l3BFOWjZZASE9a2yagWw1ot5/KiRw=="
     // la classe AmazonS3Client n'est pas serializable
     // on rajoute l'annotation @transient pour dire a Spark de ne pas essayer de serialiser cette
     @transient val awsClient = new AmazonS3Client(new BasicSessionCredentials(AWS_ID, AWS_KEY, AWS_SESSION_TOKEN))
@@ -116,21 +117,24 @@ object AWSProj {
     sqlContext.read.
       option("delimiter"," ").
       option("infer_schema","true").
-      csv("https://rod-gdelt.s3.us-east-1.amazonaws.com/masterfilelist-translation.txt").
+      //csv("https://rod-gdelt.s3.us-east-1.amazonaws.com/masterfilelist-translation.txt").
+      csv("/tmp/masterfilelist.txt").
       withColumnRenamed("_c2","url").
-      filter(col("url").
-        contains("/20210101")).
+      filter(col("url").contains("/2021010100")).
       repartition(200).
       foreach( r=> {                               //  J  EN SUIS LA :
-      val URL = r.getAs[String](0)
+      val URL = r.getAs[String](2)
       val fileName = r.getAs[String](0).split("/").last
-      val dir = "/home/aar/bigdata/proj2018/data/"
+      val dir = "/cal/homes/rcalvet/furets/"
       val localFileName = dir + fileName
       fileDownloader(URL,  localFileName)
       val localFile = new File(localFileName)
-      awsClient.putObject("rod-gdelt-2021010", fileName, localFile )
-      localFile.delete()
+      @transient val awsClient = new AmazonS3Client(new BasicSessionCredentials(AWS_ID, AWS_KEY, AWS_SESSION_TOKEN))
+      val pto = awsClient.putObject("rod-gdelt-2021010100", fileName, localFile ).getVersionId
+      val res = localFile.delete()
     })
+
+
 
     def doStuff(a: Int, b: Int): Int = {
       val sum = a + b

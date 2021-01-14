@@ -2,6 +2,7 @@ package paristech
 
 
 import com.mongodb.client.{MongoClient, MongoDatabase}
+import com.mongodb.lang.Nullable
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import com.mongodb.spark.MongoSpark
@@ -9,7 +10,6 @@ import org.bson.Document
 import com.mongodb.spark._
 import com.mongodb.spark.config.ReadConfig
 import org.bson.codecs.configuration.CodecRegistries.{fromProviders, fromRegistries}
-
 import org.mongodb.scala._
 
 object MongoProj {
@@ -127,7 +127,7 @@ object MongoProj {
   }
 
 
-  case class Event(GLOBALEVENTID: BigInt,
+  case class Event(@Nullable GLOBALEVENTID: Int,
                    SQLDATE: Int,
                    MonthYear: Int,
                    Year: Int,
@@ -187,6 +187,6 @@ object MongoProj {
                    ActionGeo_Long: Double,
                    ActionGeo_FeatureID: String,
                    DATEADDED: BigInt,
-                   SOURCEURL: String)
+                   @Nullable SOURCEURL: String)
 
 }
