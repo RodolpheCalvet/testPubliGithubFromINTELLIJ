@@ -124,13 +124,13 @@ object AWSProj {
       repartition(200).
       foreach( r=> {                               //  J  EN SUIS LA :
       val URL = r.getAs[String](2)
-      val fileName = r.getAs[String](0).split("/").last
+      val fileName = r.getAs[String](2).split("gdeltv2/").last
       val dir = "/cal/homes/rcalvet/furets/"
       val localFileName = dir + fileName
       fileDownloader(URL,  localFileName)
       val localFile = new File(localFileName)
       @transient val awsClient = new AmazonS3Client(new BasicSessionCredentials(AWS_ID, AWS_KEY, AWS_SESSION_TOKEN))
-      val pto = awsClient.putObject("rod-gdelt-2021010100", fileName, localFile ).getVersionId
+      val pto = awsClient.putObject("rod-gdelt", fileName, localFile ).getVersionId
       val res = localFile.delete()
     })
 
