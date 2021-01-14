@@ -94,10 +94,10 @@ object AWSProj {
     //fileDownloader("http://data.gdeltproject.org/gdeltv2/masterfilelist-translation.txt", "/tmp/masterfilelist_translation.txt")
 
     //arn:aws:s3:::furets
-    val AWS_ID = "ASIAQFYNH7PYSTBF4HHI"
-    val AWS_KEY = "X0zLznxFMKnvym11jVvsfP+oU1PLiTV9Rl1ix7x8" //seccret one
+    val AWS_ID = "ASIAQFYNH7PYTVAGDB3C"
+    val AWS_KEY = "ysn3iurhZFvgrsozFb9dXAn5cOao+rvzAeAYbvlM" //seccret one
     val AWS_SESSION_TOKEN =
-    "FwoGZXIvYXdzED4aDJ/voiN6QT/qZKm3QyLQAShMNrEOkX4sjXyWivd3u5I8UDwTCei4IOo9f+0DwJgmvCT4Gsq98WpCjCT3r9o0rk9N6k2sQGKEXBsK5XixnRV3Bp0B4bDOXgB5OCHklFx2/6/98J43ZK6W3Y25N8ijTSwCRwxVs3Ke6iQ5GunbuDtO5Kpmf80eTyVSA7nELVm1QY6A3AbZoVUGLiZpmj784zIyf92OKnzYg1GYRUOlTeOMC2489+JxW8IcJleeZwnxYyWMDpKXocvbtApFduOzQ7Vc/5Rx1l9rwf9bJonvBGMo8NeCgAYyLQQE88jQjk0oE1MAdde3moj+ihUkvDZx0l3BFOWjZZASE9a2yagWw1ot5/KiRw=="
+    "FwoGZXIvYXdzEEEaDFTFKt/x+1XgyQFIVCLQAXvuFtdk8SG/ao1c8ETXv/PeihqNXMAjClx9XzXS4xwkhJ2Oy2CNF3Y2at3wl/l8vpZlGRp9mjk0dZAAtexhO1LPaPceS5D4AKHUoOwVBoVRbF+6dA/IgqUOx+bZuIJwAk7EwQ0AF8QWwSYBOq/HoPtNXjYmtnHJuNp6v73RxM8kwld8zb8BrpL4l/HTcEfWbZCQNVi6AVZz3218H/oM5fULuoIXHHFNCp6aeCvi3JYzCrFikBCDK+CpbNGXpr9BqDF3VK1Sja4mHLB7yvOaWkAo3a2DgAYyLZMdz+a7SThIeandErO87fdVDQe+k3vbLUA2phOWnxbXzWC0WiQFE9vt4njyOw=="
     // la classe AmazonS3Client n'est pas serializable
     // on rajoute l'annotation @transient pour dire a Spark de ne pas essayer de serialiser cette
     @transient val awsClient = new AmazonS3Client(new BasicSessionCredentials(AWS_ID, AWS_KEY, AWS_SESSION_TOKEN))
@@ -108,33 +108,51 @@ object AWSProj {
     spark.sparkContext.hadoopConfiguration.set("fs.s3a.session.token", AWS_SESSION_TOKEN) //(3) 15 par default !!!
 
     //  A REFAIRE POUR REFRESH dernières actus : la masterList
-    awsClient.putObject("rod-gdelt", "masterfilelist.txt", new File("/tmp/masterfilelist.txt"))
-    awsClient.putObject("rod-gdelt", "masterfilelist_translation.txt", new File("/tmp/masterfilelist_translation.txt"))
+    //awsClient.putObject("rod-gdelt", "masterfilelist.txt", new File("/tmp/masterfilelist.txt"))
+    //awsClient.putObject("rod-gdelt", "masterfilelist_translation.txt", new File("/tmp/masterfilelist_translation.txt"))
 
     val sqlContext = spark.sqlContext
 
-    // BUG CI DESSOUS
-    sqlContext.read.
-      option("delimiter"," ").
-      option("infer_schema","true").
-      //csv("https://rod-gdelt.s3.us-east-1.amazonaws.com/masterfilelist-translation.txt").
-      csv("/tmp/masterfilelist.txt").
-      withColumnRenamed("_c2","url").
-      filter(col("url").contains("/2021010100")).
-      repartition(200).
-      foreach( r=> {                               //  J  EN SUIS LA :
-      val URL = r.getAs[String](2)
-      val fileName = r.getAs[String](2).split("gdeltv2/").last
-      val dir = "/cal/homes/rcalvet/furets/"
-      val localFileName = dir + fileName
-      fileDownloader(URL,  localFileName)
-      val localFile = new File(localFileName)
-      @transient val awsClient = new AmazonS3Client(new BasicSessionCredentials(AWS_ID, AWS_KEY, AWS_SESSION_TOKEN))
-      val pto = awsClient.putObject("rod-gdelt", fileName, localFile ).getVersionId
-      val res = localFile.delete()
-    })
+    val racineTemps : String = "2021010100"
 
+// CI DESSOUS A FAIRE USTE UNE FOIS ::: ECRITURE SUR S3 ::: des fichiers ici .contains("/2021010100")). d'abord downloadés sur tmp/ local
+//  puis uploadés S3 avec suprrssion dossiers en local enfin
+//    sqlContext.read.
+//      option("delimiter"," ").
+//      option("infer_schema","true").
+//      //csv("https://rod-gdelt.s3.us-east-1.amazonaws.com/masterfilelist-translation.txt").
+//      csv("/tmp/masterfilelist.txt").
+//      withColumnRenamed("_c2","url").
+//      filter(col("url").contains("/2021010100")).
+//      repartition(200).
+//      foreach( r=> {                               //  J  EN SUIS LA :
+//      val URL = r.getAs[String](2)
+//      val fileName = r.getAs[String](2).split("gdeltv2/").last
+//      val dir = "/cal/homes/rcalvet/furets/"
+//      val localFileName = dir + fileName
+//      fileDownloader(URL,  localFileName)
+//      val localFile = new File(localFileName)
+//      @transient val awsClient = new AmazonS3Client(new BasicSessionCredentials(AWS_ID, AWS_KEY, AWS_SESSION_TOKEN))
+//      val pto = awsClient.putObject("rod-gdelt", fileName, localFile ).getVersionId
+//      val res = localFile.delete()
+//    })
 
+    //https://rod-gdelt.s3.amazonaws.com/20210101000000.export.CSV.zip
+    //val eventsRDD = spark.sparkContext.binaryFiles("https://rod-gdelt.s3.us-east-1.amazonaws.com/20210101000000.export.CSV.zip").
+    val eventsRDD = spark.sparkContext.binaryFiles("s3a://rod-gdelt/20210101*.mentions.CSV.zip",100).
+      flatMap {  // decompresser les fichiers
+        case (name: String, content: PortableDataStream) =>
+          val zis = new ZipInputStream(content.open)
+          Stream.continually(zis.getNextEntry).
+            takeWhile(_ != null).
+            flatMap { _ =>
+              val br = new BufferedReader(new InputStreamReader(zis))
+              Stream.continually(br.readLine()).takeWhile(_ != null)
+            }
+      }
+    val cachedEvents = eventsRDD.cache // RDD
+
+    cachedEvents.take(1)
 
     def doStuff(a: Int, b: Int): Int = {
       val sum = a + b
