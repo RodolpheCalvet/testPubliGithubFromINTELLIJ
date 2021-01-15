@@ -103,9 +103,10 @@ object AWSProj {
     @transient val awsClient = new AmazonS3Client(new BasicSessionCredentials(AWS_ID, AWS_KEY, AWS_SESSION_TOKEN))
 
     //furets OU rod-gdelt
-    spark.sparkContext.hadoopConfiguration.set("fs.s3a.access.key", AWS_ID) //(1) mettre votre ID du fichier credentials.csv
-    spark.sparkContext.hadoopConfiguration.set("fs.s3a.secret.key", AWS_KEY) //(2) mettre votre secret du fichier credentials.csv
-    spark.sparkContext.hadoopConfiguration.set("fs.s3a.session.token", AWS_SESSION_TOKEN) //(3) 15 par default !!!
+    val sc = spark.sparkContext
+    sc.hadoopConfiguration.set("fs.s3a.access.key", AWS_ID) //(1) mettre votre ID du fichier credentials.csv
+    sc.hadoopConfiguration.set("fs.s3a.secret.key", AWS_KEY) //(2) mettre votre secret du fichier credentials.csv
+    sc.hadoopConfiguration.set("fs.s3a.session.token", AWS_SESSION_TOKEN) //(3) 15 par default !!!
 
     //  A REFAIRE POUR REFRESH dernières actus : la masterList
     //awsClient.putObject("rod-gdelt", "masterfilelist.txt", new File("/tmp/masterfilelist.txt"))
@@ -115,17 +116,19 @@ object AWSProj {
 
     val racineTemps : String = "2021010100"
 
-// CI DESSOUS A FAIRE JUSTE UNE FOIS ::: ECRITURE SUR S3 ::: des fichiers ici .contains("/2021010100")). d'abord downloadés sur tmp/ local
-//  puis uploadés S3 avec suprrssion dossiers en local enfin
+ // CI DESSOUS A FAIRE JUSTE UNE FOIS ::: ECRITURE SUR S3 ::
+    // des fichiers ici .contains("/2021010100")). d'abord downloadés sur tmp/ local
+ // puis uploadés S3 avec suprrssion dossiers en local enfin
+
 //    sqlContext.read.
 //      option("delimiter"," ").
 //      option("infer_schema","true").
 //      //csv("https://rod-gdelt.s3.us-east-1.amazonaws.com/masterfilelist-translation.txt").
 //      csv("/tmp/masterfilelist.txt").
 //      withColumnRenamed("_c2","url").
-//      filter(col("url").contains("/2021010100")).
+//      filter(col("url").contains("/2021010101")).
 //      repartition(200).
-//      foreach( r=> {                               //  J  EN SUIS LA :
+//      foreach( r=> {                               //  DEBUGGé hack dernières lignes!!
 //      val URL = r.getAs[String](2)
 //      val fileName = r.getAs[String](2).split("gdeltv2/").last
 //      val dir = "/cal/homes/rcalvet/furets/"
@@ -139,7 +142,9 @@ object AWSProj {
 
     //https://rod-gdelt.s3.amazonaws.com/20210101000000.export.CSV.zip
     //val eventsRDD = spark.sparkContext.binaryFiles("https://rod-gdelt.s3.us-east-1.amazonaws.com/20210101000000.export.CSV.zip").
-    val eventsRDD = spark.sparkContext.binaryFiles("s3a://rod-gdelt/20210101[0-9]*.export.CSV.zip", 100).
+    //val eventsRDD =  spark.read.load("s3a://rod-gdelt")
+
+    val eventsRDD = sc.binaryFiles("s3a://rod-gdelt").//.///20210101[0-9]*.export.CSV.zip", 100).
       //"s3a://rod-gdelt", 100).
       //20210101*.mentions.CSV.zip",100).
       flatMap {  // decompresser les fichiers
@@ -154,7 +159,9 @@ object AWSProj {
       }
     val cachedEvents = eventsRDD.cache // RDD
 
-    cachedEvents.take(1)
+
+//
+    cachedEvents.take(2)
 
     def doStuff(a: Int, b: Int): Int = {
       val sum = a + b
