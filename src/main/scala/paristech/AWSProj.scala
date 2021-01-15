@@ -94,10 +94,10 @@ object AWSProj {
     //fileDownloader("http://data.gdeltproject.org/gdeltv2/masterfilelist-translation.txt", "/tmp/masterfilelist_translation.txt")
 
     //arn:aws:s3:::furets
-    val AWS_ID = "ASIAQFYNH7PYTVAGDB3C"
-    val AWS_KEY = "ysn3iurhZFvgrsozFb9dXAn5cOao+rvzAeAYbvlM" //seccret one
+    val AWS_ID = "ASIAQFYNH7PY2XSMFTXO"
+    val AWS_KEY = "VHLxovmm5ORlJo4Cqv9t/kwhUYn36Bet2iSMAa6+" //seccret one
     val AWS_SESSION_TOKEN =
-    "FwoGZXIvYXdzEEEaDFTFKt/x+1XgyQFIVCLQAXvuFtdk8SG/ao1c8ETXv/PeihqNXMAjClx9XzXS4xwkhJ2Oy2CNF3Y2at3wl/l8vpZlGRp9mjk0dZAAtexhO1LPaPceS5D4AKHUoOwVBoVRbF+6dA/IgqUOx+bZuIJwAk7EwQ0AF8QWwSYBOq/HoPtNXjYmtnHJuNp6v73RxM8kwld8zb8BrpL4l/HTcEfWbZCQNVi6AVZz3218H/oM5fULuoIXHHFNCp6aeCvi3JYzCrFikBCDK+CpbNGXpr9BqDF3VK1Sja4mHLB7yvOaWkAo3a2DgAYyLZMdz+a7SThIeandErO87fdVDQe+k3vbLUA2phOWnxbXzWC0WiQFE9vt4njyOw=="
+    "FwoGZXIvYXdzEE4aDG4Ejblc6qoGxfVmnSLQAc4h0uLa7DzeiqIh1Oc67P6o87KmnjAReu3QDT+6xvGf1ZoeEJidMQSNC7aElElf+Z8DT6qhngEd83cITzdVmDgfym49S+XI4czQg5LYlDauk+j7pVJNcj/Fy22KhAiF2mFeOxUD05gxfcnVjFwg3fUTBAkX5C2n2cclOdxqFwGQpawhF4ByagdmVPWgT7CmO8uAH6iqHIDAe0CylUTw1O16svxtH6ekab2JrrrDO77meOVvevx+boPysP7caA9G3XGkdrh9dB8SVfoPnHd88boohZOGgAYyLQxI6NzI4PoR+cNwaAKgafkKOM4By4tJCP2Lq7GS6U/JbEGzlzOoPXP5UsbMJw=="
     // la classe AmazonS3Client n'est pas serializable
     // on rajoute l'annotation @transient pour dire a Spark de ne pas essayer de serialiser cette
     @transient val awsClient = new AmazonS3Client(new BasicSessionCredentials(AWS_ID, AWS_KEY, AWS_SESSION_TOKEN))
@@ -115,7 +115,7 @@ object AWSProj {
 
     val racineTemps : String = "2021010100"
 
-// CI DESSOUS A FAIRE USTE UNE FOIS ::: ECRITURE SUR S3 ::: des fichiers ici .contains("/2021010100")). d'abord downloadés sur tmp/ local
+// CI DESSOUS A FAIRE JUSTE UNE FOIS ::: ECRITURE SUR S3 ::: des fichiers ici .contains("/2021010100")). d'abord downloadés sur tmp/ local
 //  puis uploadés S3 avec suprrssion dossiers en local enfin
 //    sqlContext.read.
 //      option("delimiter"," ").
@@ -139,7 +139,9 @@ object AWSProj {
 
     //https://rod-gdelt.s3.amazonaws.com/20210101000000.export.CSV.zip
     //val eventsRDD = spark.sparkContext.binaryFiles("https://rod-gdelt.s3.us-east-1.amazonaws.com/20210101000000.export.CSV.zip").
-    val eventsRDD = spark.sparkContext.binaryFiles("s3a://rod-gdelt/20210101*.mentions.CSV.zip",100).
+    val eventsRDD = spark.sparkContext.binaryFiles("s3a://rod-gdelt/20210101[0-9]*.export.CSV.zip", 100).
+      //"s3a://rod-gdelt", 100).
+      //20210101*.mentions.CSV.zip",100).
       flatMap {  // decompresser les fichiers
         case (name: String, content: PortableDataStream) =>
           val zis = new ZipInputStream(content.open)
