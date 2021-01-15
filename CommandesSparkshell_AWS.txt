@@ -1,0 +1,134 @@
+
+
+Commandes SPARK pour les furets
+
+Lancer le spark shell :
+
+cd vers /spark......hadoop2.7/bin
+puis
+./spark-shell  --packages org.apache.hadoop:hadoop-aws:3.3.0,com.amazonaws:aws-java-sdk:1.7.4
+
+puis copier collers avec:
+:paste
+CTRL V
+enter ou ;
+fin CTLD (attention CTRL C kill le sparkshell)
+
+Note
+Enable MongoDB Connector specific functions and implicits for the SparkSession and RDD (Resilient Distributed Dataset) by importing the following package in the Spark shell:
+( pour import com.mongodb.spark._)
+
+//////////////////////////  A RECOLLER A CHAQUE NOUVEAU SHELL //////////////////////////////////////////
+
+import com.amazonaws.auth.BasicSessionCredentials
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.SparkSession
+
+// Imports
+import java.io.File
+import java.net.{HttpURLConnection, URL}
+
+import scala.sys.process._
+//import sqlContext.implicits._
+//import com.amazonaws.services.lambda.runtime.events.S3Event
+//import com.amazonaws.services.lambda.runtime.{Context, RequestHandler}
+import com.amazonaws.services.s3.AmazonS3Client
+
+   val sparkConf = new SparkConf().setAll(Map(
+      "spark.master" -> "local",
+      "spark.scheduler.mode" -> "FIFO",
+      "spark.speculation" -> "false",
+      "spark.reducer.maxSizeInFlight" -> "48m",
+      "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer",
+      "spark.kryoserializer.buffer.max" -> "1g",
+      "spark.shuffle.file.buffer" -> "32k",
+      "spark.default.parallelism" -> "12",
+      "spark.sql.shuffle.partitions" -> "12",
+    ))
+
+    //Affiche recap conf avec versions dependencies
+    sparkConf.getAll.toString
+
+    val spark = SparkSession.builder()
+      .appName("AWSProj")
+      .config(sparkConf)
+      .getOrCreate()
+
+    spark.sparkContext.setLogLevel("ERROR")
+
+
+    def fileDownloader(urlOfFileToDownload: String, fileName: String) = {
+      val url = new URL(urlOfFileToDownload)
+      val connection = url.openConnection().asInstanceOf[HttpURLConnection]
+      connection.setConnectTimeout(5000)
+      connection.setReadTimeout(5000)
+      connection.connect()
+
+      if (connection.getResponseCode >= 400)
+        println("error")
+      else
+        url #> new File(fileName) !!
+    }
+
+    // Download locally the list of URL
+    // A VOIR SI vers spark master plutot cf andrei
+    //fileDownloader("http://data.gdeltproject.org/gdeltv2/masterfilelist.txt", "/tmp/masterfilelist.txt") // save the list file to the Spark Master
+    //fileDownloader("http://data.gdeltproject.org/gdeltv2/masterfilelist-translation.txt", "/tmp/masterfilelist_translation.txt")
+
+    //arn:aws:s3:::furets
+    val AWS_ID = "ASIAQFYNH7PY2XSMFTXO"
+    val AWS_KEY = "VHLxovmm5ORlJo4Cqv9t/kwhUYn36Bet2iSMAa6+" //seccret one
+    val AWS_SESSION_TOKEN =
+    "FwoGZXIvYXdzEE4aDG4Ejblc6qoGxfVmnSLQAc4h0uLa7DzeiqIh1Oc67P6o87KmnjAReu3QDT+6xvGf1ZoeEJidMQSNC7aElElf+Z8DT6qhngEd83cITzdVmDgfym49S+XI4czQg5LYlDauk+j7pVJNcj/Fy22KhAiF2mFeOxUD05gxfcnVjFwg3fUTBAkX5C2n2cclOdxqFwGQpawhF4ByagdmVPWgT7CmO8uAH6iqHIDAe0CylUTw1O16svxtH6ekab2JrrrDO77meOVvevx+boPysP7caA9G3XGkdrh9dB8SVfoPnHd88boohZOGgAYyLQxI6NzI4PoR+cNwaAKgafkKOM4By4tJCP2Lq7GS6U/JbEGzlzOoPXP5UsbMJw=="
+    // la classe AmazonS3Client n'est pas serializable
+    // on rajoute l'annotation @transient pour dire a Spark de ne pas essayer de serialiser cette
+    @transient val awsClient = new AmazonS3Client(new BasicSessionCredentials(AWS_ID, AWS_KEY, AWS_SESSION_TOKEN))
+
+    //furets OU rod-gdelt
+    val sc = spark.sparkContext
+    sc.hadoopConfiguration.set("fs.s3a.access.key", AWS_ID) //(1) mettre votre ID du fichier credentials.csv
+    sc.hadoopConfiguration.set("fs.s3a.secret.key", AWS_KEY) //(2) mettre votre secret du fichier credentials.csv
+    sc.hadoopConfiguration.set("fs.s3a.session.token", AWS_SESSION_TOKEN) //(3) 15 par default !!!
+
+    //  A REFAIRE POUR REFRESH dernières actus : la masterList
+    //awsClient.putObject("rod-gdelt", "masterfilelist.txt", new File("/tmp/masterfilelist.txt"))
+    //awsClient.putObject("rod-gdelt", "masterfilelist_translation.txt", new File("/tmp/masterfilelist_translation.txt"))
+
+    val sqlContext = spark.sqlContext
+
+    val racineTemps : String = "2021010100"
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// A COLLER SI ECRITURE SUR S3
+
+    sqlContext.read.
+      option("delimiter"," ").
+      option("infer_schema","true").
+      //csv("https://rod-gdelt.s3.us-east-1.amazonaws.com/masterfilelist-translation.txt").
+      csv("/tmp/masterfilelist.txt").
+      withColumnRenamed("_c2","url").
+      filter(col("url").contains("/2021010101")).
+      repartition(200).
+      foreach( r=> {                               //  DEBUGGé hack dernières lignes!!
+      val URL = r.getAs[String](2)
+      val fileName = r.getAs[String](2).split("gdeltv2/").last
+      val dir = "/cal/homes/rcalvet/furets/"
+      val localFileName = dir + fileName
+      fileDownloader(URL,  localFileName)
+      val localFile = new File(localFileName)
+      @transient val awsClient = new AmazonS3Client(new BasicSessionCredentials(AWS_ID, AWS_KEY, AWS_SESSION_TOKEN))
+      val pto = awsClient.putObject("rod-gdelt", fileName, localFile ).getVersionId
+      val res = localFile.delete()
+    })
+
+
+  val eventsRDD = sc.binaryFiles("s3a://rod-gdelt")//.///20210101[0-9]*.export.CSV.zip", 100).
+
+
+
+
+
+
+

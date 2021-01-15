@@ -10,7 +10,7 @@ puis
 
 puis configurer le spark shell pour URL atlas et dependency Mongospark (connector_2.12:3.0.0)
 MEF PAS DE WHITESPACE entre les packages !!!!!
-./spark-shell --conf "spark.mongodb.input.uri=mongodb+srv://admin:admin@cluster0.ldu6v.mongodb.net/DBtest.COLLtest" --conf "spark.mongodb.output.uri=mongodb+srv://admin:admin@cluster0.ldu6v.mongodb.net/DBtest.COLLtest" --packages org.mongodb.scala:mongo-scala-driver_2.12:4.1.1 --packages org.mongodb.spark:mongo-spark-connector_2.12:3.0.0,
+./spark-shell --conf "spark.mongodb.input.uri=mongodb+srv://admin:admin@cluster0.ldu6v.mongodb.net/DBtest.COLLtest" --conf "spark.mongodb.output.uri=mongodb+srv://admin:admin@cluster0.ldu6v.mongodb.net/DBtest.COLLtest" --packages org.mongodb.scala:mongo-scala-driver_2.12:4.1.1,org.mongodb.spark:mongo-spark-connector_2.12:3.0.0
 
 puis copier collers aavec:
 :paste

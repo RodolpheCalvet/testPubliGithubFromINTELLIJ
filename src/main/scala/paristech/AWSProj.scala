@@ -1,33 +1,18 @@
 package paristech
 
-import com.amazonaws.AmazonWebServiceClient
-import com.amazonaws.auth.{BasicSessionCredentials, DefaultAWSCredentialsProviderChain}
-import com.mongodb.spark.MongoSpark
-import com.mongodb.spark.config.ReadConfig
+import com.amazonaws.auth.BasicSessionCredentials
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{SQLContext, SparkSession}
+import org.apache.spark.sql.SparkSession
 
 // Imports
-import sys.process._
-import java.net.URL
 import java.io.File
-import java.io.File
-import java.nio.file.{Files, StandardCopyOption}
-import java.net.HttpURLConnection
-import org.apache.spark.sql.functions._
+import java.net.{HttpURLConnection, URL}
+
+import scala.sys.process._
 //import sqlContext.implicits._
-import org.apache.spark.input.PortableDataStream
-import java.util.zip.ZipInputStream
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import org.apache.spark.sql.SQLContext
-import com.amazonaws.services.s3.AmazonS3Client
-import com.amazonaws.auth.BasicAWSCredentials
-import org.apache.spark.sql.types.IntegerType
-import com.amazonaws.regions.{Region, Regions}
 //import com.amazonaws.services.lambda.runtime.events.S3Event
 //import com.amazonaws.services.lambda.runtime.{Context, RequestHandler}
-import com.amazonaws.services.s3.{AmazonS3, AmazonS3Client}
+import com.amazonaws.services.s3.AmazonS3Client
 //import com.amazonaws.services.s3.{AmazonS3, AmazonS3ClientBuilder}
 //import com.amazonaws.client.builder.AwsClientBuilder
 
@@ -116,7 +101,7 @@ object AWSProj {
 
     val racineTemps : String = "2021010100"
 
- // CI DESSOUS A FAIRE JUSTE UNE FOIS ::: ECRITURE SUR S3 ::
+ // CI DESSOUS A FAIRE JUSTE UNE FOIS ::: ECRITURE SUR S3 :: ////////////////////////////////////////////////////////////////////////
     // des fichiers ici .contains("/2021010100")). d'abord downloadés sur tmp/ local
  // puis uploadés S3 avec suprrssion dossiers en local enfin
 
@@ -140,28 +125,33 @@ object AWSProj {
 //      val res = localFile.delete()
 //    })
 
+
+    /////////////////////////////////CHARGEMENT CREATION DE RDD A P des csv sur S3
+
     //https://rod-gdelt.s3.amazonaws.com/20210101000000.export.CSV.zip
     //val eventsRDD = spark.sparkContext.binaryFiles("https://rod-gdelt.s3.us-east-1.amazonaws.com/20210101000000.export.CSV.zip").
-    //val eventsRDD =  spark.read.load("s3a://rod-gdelt")
 
-    val eventsRDD = sc.binaryFiles("s3a://rod-gdelt").//.///20210101[0-9]*.export.CSV.zip", 100).
-      //"s3a://rod-gdelt", 100).
-      //20210101*.mentions.CSV.zip",100).
-      flatMap {  // decompresser les fichiers
-        case (name: String, content: PortableDataStream) =>
-          val zis = new ZipInputStream(content.open)
-          Stream.continually(zis.getNextEntry).
-            takeWhile(_ != null).
-            flatMap { _ =>
-              val br = new BufferedReader(new InputStreamReader(zis))
-              Stream.continually(br.readLine()).takeWhile(_ != null)
-            }
-      }
+//    val eventsRDD =  spark.read.load("s3a://rod-gdelt")
+
+    val eventsRDD = sc.binaryFiles("s3a://rod-gdelt")//.///20210101[0-9]*.export.CSV.zip", 100).
+//      //"s3a://rod-gdelt", 100).
+//      //20210101*.mentions.CSV.zip",100).
+//      flatMap {  // decompresser les fichiers
+//        case (name: String, content: PortableDataStream) =>
+//          val zis = new ZipInputStream(content.open)
+//          Stream.continually(zis.getNextEntry).
+//            takeWhile(_ != null).
+//            flatMap { _ =>
+//              val br = new BufferedReader(new InputStreamReader(zis))
+//              Stream.continually(br.readLine()).takeWhile(_ != null)
+//            }
+//      }
+
     val cachedEvents = eventsRDD.cache // RDD
 
 
 //
-    cachedEvents.take(2)
+   // cachedEvents.take(2)
 
     def doStuff(a: Int, b: Int): Int = {
       val sum = a + b
